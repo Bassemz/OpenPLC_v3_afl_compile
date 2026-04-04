@@ -1,5 +1,11 @@
 # OpenPLC Runtime version 3
 
+> **⚠️ This project has reached End of Life and is no longer maintained.**
+> It has been replaced by [OpenPLC Runtime v4](https://github.com/autonomy-logic/openplc-runtime).
+> Please visit the new repository for installation instructions, documentation, and support.
+
+---
+
 [![Build Status](https://travis-ci.org/thiagoralves/OpenPLC_v3.svg?branch=master)](https://travis-ci.org/thiagoralves/OpenPLC_v3)
 [![Build status](https://ci.appveyor.com/api/projects/status/ut3466ixwtyf68qg?svg=true)](https://ci.appveyor.com/project/shrmrf/openplc-v3)
 
