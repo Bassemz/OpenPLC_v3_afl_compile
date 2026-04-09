@@ -1,0 +1,825 @@
+diff --git a/background_installer.sh b/background_installer.sh
+index 921b078..a138039 100755
+--- a/background_installer.sh
++++ b/background_installer.sh
+@@ -130,14 +130,14 @@ function install_matiec {
+ function install_st_optimizer {
+     echo "[ST OPTIMIZER]"
+     cd "$OPENPLC_DIR/utils/st_optimizer_src"
+-    g++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
++    /aflnet/afl-clang-fast++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
+     cd "$OPENPLC_DIR"
+ }
+ 
+ function install_glue_generator {
+     echo "[GLUE GENERATOR]"
+     cd "$OPENPLC_DIR/utils/glue_generator_src"
+-    g++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
++    /aflnet/afl-clang-fast++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
+     cd "$OPENPLC_DIR"
+ }
+ 
+diff --git a/utils/snap7_src/wrapper/oplc_snap7.cpp b/utils/snap7_src/wrapper/oplc_snap7.cpp
+index a018f93..c53b85c 100644
+--- a/utils/snap7_src/wrapper/oplc_snap7.cpp
++++ b/utils/snap7_src/wrapper/oplc_snap7.cpp
+@@ -1195,7 +1195,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
+         case 2:
+             if (PTag->WordLen == S7WLBit)
+             {
+-                Result = DoRead ? getBitFromWordArray(int_input, PTag->Start, pUsrData) : putBitToWordArray(int_input, PTag->Start, pUsrData);
++                Result = DoRead ? getBitFromWordArray(int_input, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_input, PTag->Start, pbyte(pUsrData));
+             }
+             else {
+                 Result = DoRead ? getBytesFromWordArray(int_input, PTag->Start, Size, pbyte(pUsrData)) :
+@@ -1205,7 +1205,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
+         case 102:
+             if (PTag->WordLen == S7WLBit)
+             {
+-                Result = DoRead ? getBitFromWordArray(int_output, PTag->Start, pUsrData) : putBitToWordArray(int_output, PTag->Start, pUsrData);
++                Result = DoRead ? getBitFromWordArray(int_output, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_output, PTag->Start, pbyte(pUsrData));
+             }
+             else {
+                 Result = DoRead ? getBytesFromWordArray(int_output, PTag->Start, Size, pbyte(pUsrData)) :
+@@ -1215,7 +1215,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
+         case 1002:
+             if (PTag->WordLen == S7WLBit)
+             {
+-                Result = DoRead ? getBitFromWordArray(int_memory, PTag->Start, pUsrData) : putBitToWordArray(int_memory, PTag->Start, pUsrData);
++                Result = DoRead ? getBitFromWordArray(int_memory, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_memory, PTag->Start, pbyte(pUsrData));
+             }
+             else {
+                 Result = DoRead ? getBytesFromWordArray(int_memory, PTag->Start, Size, pbyte(pUsrData)) :
+@@ -1225,7 +1225,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
+         case 1004:
+             if (PTag->WordLen == S7WLBit)
+             {
+-                Result = DoRead ? getBitFromDWordArray(dint_memory, PTag->Start, pUsrData) : putBitToDWordArray(dint_memory, PTag->Start, pUsrData);
++                Result = DoRead ? getBitFromDWordArray(dint_memory, PTag->Start, pbyte(pUsrData)) : putBitToDWordArray(dint_memory, PTag->Start, pbyte(pUsrData));
+             }
+             else {
+                 Result = DoRead ? getBytesFromDWordArray(dint_memory, PTag->Start, Size, pbyte(pUsrData)) :
+diff --git a/webserver/active_program b/webserver/active_program
+index 44b6177..a5caca7 100755
+--- a/webserver/active_program
++++ b/webserver/active_program
+@@ -1 +1 @@
+-blank_program.st
++webserver_program.st
+diff --git a/webserver/core/client.cpp b/webserver/core/client.cpp
+index a2b130b..bb0d01a 100644
+--- a/webserver/core/client.cpp
++++ b/webserver/core/client.cpp
+@@ -59,7 +59,7 @@ int connect_to_tcp_server(uint8_t *ip_address, uint16_t port, int method)
+     
+     //Configure socket
+     servaddr.sin_family = AF_INET;
+-    servaddr.sin_addr.s_addr = inet_addr(ip_address);
++    servaddr.sin_addr.s_addr = inet_addr((const char *)ip_address);
+     servaddr.sin_port = htons(port);
+     
+     //Connect to server
+diff --git a/webserver/core/interactive_server.cpp b/webserver/core/interactive_server.cpp
+index 63318e5..a9e5e3a 100644
+--- a/webserver/core/interactive_server.cpp
++++ b/webserver/core/interactive_server.cpp
+@@ -111,7 +111,7 @@ int readCommandArgument(unsigned char *command)
+ {
+     int i = 0;
+     int j = 0;
+-    unsigned char argument[1024];
++    char argument[1024];
+ 
+     while (command[i] != '(' && command[i] != '\0') i++;
+     if (command[i] == '(') i++;
+@@ -128,12 +128,12 @@ int readCommandArgument(unsigned char *command)
+ //-----------------------------------------------------------------------------
+ // Read string argument from a command function
+ //-----------------------------------------------------------------------------
+-unsigned char *readCommandArgumentStr(unsigned char *command)
++char *readCommandArgumentStr(unsigned char *command)
+ {
+     int i = 0;
+     int j = 0;
+-    unsigned char *argument;
+-    argument = (unsigned char *)malloc(1024 * sizeof(unsigned char));
++    char *argument;
++    argument = (char *)malloc(1024 * sizeof(char));
+ 
+     while (command[i] != '(' && command[i] != '\0') i++;
+     if (command[i] == '(') i++;
+@@ -240,16 +240,17 @@ int listenToClient_interactive(int client_fd, unsigned char *buffer)
+ void processCommand(unsigned char *buffer, int client_fd)
+ {
+     char log_msg[1200];
++    char *command = (char *)buffer;
+     int count_char = 0;
+ 
+     if (processing_command)
+     {
+-        count_char = sprintf(buffer, "Processing command...\n");
++        count_char = sprintf(command, "Processing command...\n");
+         write(client_fd, buffer, count_char);
+         return;
+     }
+ 
+-    if (strncmp(buffer, "quit()", 6) == 0)
++    if (strncmp(command, "quit()", 6) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued quit() command\n");
+@@ -278,7 +279,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         run_openplc = 0;
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_ethercat(", 15) == 0)
++    else if (strncmp(command, "start_ethercat(", 15) == 0)
+     {
+         processing_command = true;
+         char *argument;
+@@ -291,7 +292,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         ethercat_configured = configureEthercat();
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_modbus(", 13) == 0)
++    else if (strncmp(command, "start_modbus(", 13) == 0)
+     {
+         processing_command = true;
+         modbus_port = readCommandArgument(buffer);
+@@ -312,7 +313,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         pthread_create(&modbus_thread, NULL, modbusThread, NULL);
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "stop_modbus()", 13) == 0)
++    else if (strncmp(command, "stop_modbus()", 13) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued stop_modbus() command\n");
+@@ -326,7 +327,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         }
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_snap7()", 13) == 0)
++    else if (strncmp(command, "start_snap7()", 13) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued start_snap7() command\n");
+@@ -346,7 +347,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         startSnap7();
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "stop_snap7()", 12) == 0)
++    else if (strncmp(command, "stop_snap7()", 12) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued stop_snap7() command\n");
+@@ -360,7 +361,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         }
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_dnp3(", 11) == 0)
++    else if (strncmp(command, "start_dnp3(", 11) == 0)
+     {
+         processing_command = true;
+         dnp3_port = readCommandArgument(buffer);
+@@ -381,7 +382,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         pthread_create(&dnp3_thread, NULL, dnp3Thread, NULL);
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "stop_dnp3()", 11) == 0)
++    else if (strncmp(command, "stop_dnp3()", 11) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued stop_dnp3() command\n");
+@@ -395,7 +396,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         }
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_enip(", 11) == 0)
++    else if (strncmp(command, "start_enip(", 11) == 0)
+     {
+         processing_command = true;
+         enip_port = readCommandArgument(buffer);
+@@ -416,7 +417,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         pthread_create(&enip_thread, NULL, enipThread, NULL);
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "stop_enip()", 11) == 0)
++    else if (strncmp(command, "stop_enip()", 11) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued stop_enip() command\n");
+@@ -430,7 +431,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         }
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "start_pstorage(", 15) == 0)
++    else if (strncmp(command, "start_pstorage(", 15) == 0)
+     {
+         processing_command = true;
+         pstorage_polling = readCommandArgument(buffer);
+@@ -446,7 +447,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         pthread_create(&pstorage_thread, NULL, pstorageThread, NULL);
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "stop_pstorage()", 15) == 0)
++    else if (strncmp(command, "stop_pstorage()", 15) == 0)
+     {
+         processing_command = true;
+         sprintf(log_msg, "Issued stop_pstorage() command\n");
+@@ -459,7 +460,7 @@ void processCommand(unsigned char *buffer, int client_fd)
+         }
+         processing_command = false;
+     }
+-    else if (strncmp(buffer, "runtime_logs()", 14) == 0)
++    else if (strncmp(command, "runtime_logs()", 14) == 0)
+     {
+         processing_command = true;
+         printf("Issued runtime_logs() command\n");
+@@ -467,11 +468,11 @@ void processCommand(unsigned char *buffer, int client_fd)
+         processing_command = false;
+         return;
+     }
+-    else if (strncmp(buffer, "exec_time()", 11) == 0)
++    else if (strncmp(command, "exec_time()", 11) == 0)
+     {
+         processing_command = true;
+         time(&end_time);
+-        count_char = sprintf(buffer, "%llu\n", (unsigned long long)difftime(end_time, start_time));
++        count_char = sprintf(command, "%llu\n", (unsigned long long)difftime(end_time, start_time));
+         write(client_fd, buffer, count_char);
+         processing_command = false;
+         return;
+@@ -479,13 +480,13 @@ void processCommand(unsigned char *buffer, int client_fd)
+     else
+     {
+         processing_command = true;
+-        count_char = sprintf(buffer, "Error: unrecognized command\n");
++        count_char = sprintf(command, "Error: unrecognized command\n");
+         write(client_fd, buffer, count_char);
+         processing_command = false;
+         return;
+     }
+ 
+-    count_char = sprintf(buffer, "OK\n");
++    count_char = sprintf(command, "OK\n");
+     write(client_fd, buffer, count_char);
+ }
+ 
+@@ -514,6 +515,7 @@ void processMessage_interactive(unsigned char *buffer, int bufferSize, int clien
+ void *handleConnections_interactive(void *arguments)
+ {
+     int client_fd = *(int *)arguments;
++    free(arguments);
+     unsigned char buffer[1024];
+     int messageSize;
+ 
+@@ -568,19 +570,25 @@ void startInteractiveServer(int port)
+         }
+ 
+         else
+-        {
+-            int arguments[1];
+-            pthread_t thread;
+-            int ret = -1;
+-
+-            printf("Interactive Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
+-            arguments[0] = client_fd;
+-            ret = pthread_create(&thread, NULL, handleConnections_interactive, arguments);
+-            if (ret==0)
+-            {
+-                pthread_detach(thread);
+-            }
+-        }
++{
++    // Allocate memory on the heap
++    int *arguments = (int *)malloc(sizeof(int));
++    pthread_t thread;
++    int ret = -1;
++
++    printf("Interactive Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
++    arguments[0] = client_fd;
++    
++    ret = pthread_create(&thread, NULL, handleConnections_interactive, (void *)arguments);
++    if (ret == 0)
++    {
++        pthread_detach(thread);
++    }
++    else
++    {
++        free(arguments); // Clean up if it fails
++    }
++}
+     }
+ 
+     printf("Shutting down internal threads\n");
+diff --git a/webserver/core/main.cpp b/webserver/core/main.cpp
+index 54005d8..78a9808 100644
+--- a/webserver/core/main.cpp
++++ b/webserver/core/main.cpp
+@@ -61,6 +61,25 @@ uint64_t *lint_input_call_back(int a){ return lint_input[a]; }
+ uint64_t *lint_output_call_back(int a){ return lint_output[a]; }
+ void logger_callback(char *msg){ openplc_log(msg);}
+ 
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <arpa/inet.h>
++
++bool is_port_open(int port) {
++    int sock = socket(AF_INET, SOCK_STREAM, 0);
++    if (sock < 0) return false;
++    
++    struct sockaddr_in addr;
++    addr.sin_family = AF_INET;
++    addr.sin_port = htons(port);
++    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
++    
++    int res = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
++    close(sock);
++    
++    return (res == 0);
++}
++
+ int main(int argc,char **argv)
+ {
+     // Define the max/min/avg/total cycle and latency variables used in REAL-TIME computation(in nanoseconds)
+@@ -104,6 +123,12 @@ int main(int argc,char **argv)
+     ethercat_configure("../utils/ethercat_src/build/ethercat.cfg", logger);
+ #endif
+     initializeHardware();
++
++
++// #ifdef __AFL_COMPILER
++//     __AFL_INIT();
++// #endif
++
+     initializeMB();
+ 
+     updateBuffersIn();
+@@ -154,6 +179,11 @@ int main(int argc,char **argv)
+     printf("Getting current time\n");
+     clock_gettime(CLOCK_MONOTONIC, &timer_start);
+ 
++    // while (!is_port_open(502)) {
++    //     usleep(100000); // Sleep for 100ms
++    // }
++
++
+     //======================================================
+     //                    MAIN LOOP
+     //======================================================
+diff --git a/webserver/core/modbus.cpp b/webserver/core/modbus.cpp
+index 3f3ea36..46517ec 100755
+--- a/webserver/core/modbus.cpp
++++ b/webserver/core/modbus.cpp
+@@ -120,7 +120,7 @@ int word(unsigned char byte1, unsigned char byte2)
+ void mapUnusedIO()
+ {
+     pthread_mutex_lock(&bufferLock);
+-
++    
+     for(int i = 0; i < MAX_DISCRETE_INPUT; i++)
+     {
+         if (bool_input[i/8][i%8] == NULL) bool_input[i/8][i%8] = &mb_discrete_input[i];
+diff --git a/webserver/core/modbus_master.cpp b/webserver/core/modbus_master.cpp
+index ecfce20..c0bfc10 100755
+--- a/webserver/core/modbus_master.cpp
++++ b/webserver/core/modbus_master.cpp
+@@ -169,7 +169,7 @@ void parseConfig()
+                     getData(line_str, temp_buffer, '"', '"');
+                     num_devices = atoi(temp_buffer);
+                     //initializes the allocated memory to zero
+-                    mb_devices = calloc(num_devices, sizeof(struct MB_device));
++                    mb_devices = (struct MB_device *)calloc(num_devices, sizeof(struct MB_device));
+                 }
+                 else if (!strncmp(line_str, "Polling_Period", 14))
+                 {
+diff --git a/webserver/core/pccc.cpp b/webserver/core/pccc.cpp
+index 2dbc0de..084e2ea 100644
+--- a/webserver/core/pccc.cpp
++++ b/webserver/core/pccc.cpp
+@@ -78,9 +78,9 @@ using namespace std;
+ struct pccc_header //Structure for the Header Information for EthernetIP
+ {
+     unsigned char *Data;    
+-    unsigned char *Data_Size;	
++    int Data_Size;	
+     
+-    unsigned char *HD_length = 5;//[5] -> Typical Header Length for Command; Response Header Length is 4
++    uint16_t HD_length = 5;//[5] -> Typical Header Length for Command; Response Header Length is 4
+     unsigned char *HD_CMD_Code;//[1] -> Command Code
+     unsigned char *HD_Status;//[1] -> Status Code
+     unsigned char *HD_TransactionNum;//[2] -> Transaction Number
+diff --git a/webserver/core/persistent_storage.cpp b/webserver/core/persistent_storage.cpp
+index 83ce01c..fee0ff8 100644
+--- a/webserver/core/persistent_storage.cpp
++++ b/webserver/core/persistent_storage.cpp
+@@ -190,7 +190,7 @@ int readPersistentStorage()
+             pthread_mutex_unlock(&bufferLock); //unlock mutex
+             fclose(file);
+             pstorage_read = true;
+-            return;
++            return 0;
+         }
+         
+         // Only assign if value is non-zero
+@@ -199,7 +199,7 @@ int readPersistentStorage()
+             // Allocate memory if the pointer is NULL
+             if (int_memory[i] == NULL) 
+             {
+-                int_memory[i] = malloc(sizeof(uint16_t));
++                int_memory[i] = (IEC_UINT *)malloc(sizeof(uint16_t));
+                 if (int_memory[i] == NULL) 
+                 {
+                     sprintf(log_msg, "Error allocating memory for int_memory[%d]", i);
+@@ -224,7 +224,7 @@ int readPersistentStorage()
+             pthread_mutex_unlock(&bufferLock); //unlock mutex
+             fclose(file);
+             pstorage_read = true;
+-            return;
++            return 0;
+         }
+         
+         // Only assign if value is non-zero
+@@ -233,7 +233,7 @@ int readPersistentStorage()
+             // Allocate memory if the pointer is NULL
+             if (dint_memory[i] == NULL) 
+             {
+-                dint_memory[i] = malloc(sizeof(uint32_t));
++                dint_memory[i] = (IEC_UDINT *)malloc(sizeof(uint32_t));
+                 if (dint_memory[i] == NULL) 
+                 {
+                     sprintf(log_msg, "Error allocating memory for dint_memory[%d]", i);
+@@ -258,7 +258,7 @@ int readPersistentStorage()
+             pthread_mutex_unlock(&bufferLock); //unlock mutex
+             fclose(file);
+             pstorage_read = true;
+-            return;
++            return 0;
+         }
+         
+         // Only assign if value is non-zero
+@@ -267,7 +267,7 @@ int readPersistentStorage()
+             // Allocate memory if the pointer is NULL
+             if (lint_memory[i] == NULL) 
+             {
+-                lint_memory[i] = malloc(sizeof(uint64_t));
++                lint_memory[i] = (IEC_ULINT *)malloc(sizeof(uint64_t));
+                 if (lint_memory[i] == NULL) 
+                 {
+                     sprintf(log_msg, "Error allocating memory for lint_memory[%d]", i);
+diff --git a/webserver/core/python_loader.cpp b/webserver/core/python_loader.cpp
+index af9b6e2..d030ee0 100644
+--- a/webserver/core/python_loader.cpp
++++ b/webserver/core/python_loader.cpp
+@@ -161,7 +161,7 @@ int python_block_loader(const char *script_name, const char *script_content, cha
+     close(shm_in_fd);
+     close(shm_out_fd);
+ 
+-    char *cmd = malloc(512);
++    char *cmd = (char *)malloc(512);
+     if (cmd == NULL) 
+     {
+         snprintf(log_msg, sizeof(log_msg), "malloc failed for cmd buffer\n");
+diff --git a/webserver/core/server.cpp b/webserver/core/server.cpp
+index f7cfee2..7601274 100644
+--- a/webserver/core/server.cpp
++++ b/webserver/core/server.cpp
+@@ -213,6 +213,9 @@ void *handleConnections(void *arguments)
+     int *args = (int *)arguments;
+     int client_fd = args[0];
+     int protocol_type = args[1];
++
++    free(args);
++
+     unsigned char buffer[NET_BUFFER_SIZE];
+     int messageSize;
+     bool *run_server;
+@@ -283,7 +286,9 @@ void startServer(uint16_t port, int protocol_type)
+     }
+     else if (protocol_type == ENIP_PROTOCOL)
+         run_server = &run_enip;
+-    
++    #ifdef __AFL_HAVE_MANUAL_CONTROL
++    __AFL_INIT();
++    #endif
+     while(*run_server)
+     {
+         client_fd = waitForClient(socket_fd, protocol_type); //block until a client connects
+@@ -294,20 +299,26 @@ void startServer(uint16_t port, int protocol_type)
+         }
+ 
+         else
+-        {
+-            int arguments[2];
+-            pthread_t thread;
+-            int ret = -1;
+-            sprintf(log_msg, "Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
+-            openplc_log(log_msg);
+-            arguments[0] = client_fd;
+-            arguments[1] = protocol_type;
+-            ret = pthread_create(&thread, NULL, handleConnections, (void*)arguments);
+-            if (ret==0) 
+-            {
+-                pthread_detach(thread);
+-            }
+-        }
++{
++    // Allocate memory on the heap so it doesn't disappear
++    int *arguments = (int *)malloc(2 * sizeof(int)); 
++    pthread_t thread;
++    int ret = -1;
++
++    arguments[0] = client_fd;
++    arguments[1] = protocol_type;
++
++    ret = pthread_create(&thread, NULL, handleConnections, (void*)arguments);
++    
++    if (ret == 0) 
++    {
++        pthread_detach(thread);
++    }
++    else 
++    {
++        free(arguments); // Clean up if thread creation failed
++    }
++}
+     }
+     close(socket_fd);
+     close(client_fd);
+diff --git a/webserver/openplc.py b/webserver/openplc.py
+index e00e0f8..b305878 100644
+--- a/webserver/openplc.py
++++ b/webserver/openplc.py
+@@ -3,6 +3,7 @@ import subprocess
+ import socket
+ import errno
+ import time
++import signal
+ from threading import Thread, Lock
+ from queue import Queue, Empty
+ import os
+@@ -81,10 +82,44 @@ class runtime:
+         self.compilation_error = None
+         self.runtime_status = "Stopped"
+ 
++    def _fuzzing_enabled(self):
++        return True
++
++    def _runtime_command(self):
++        return [
++            'afl-fuzz',
++            '-d',
++            '-i', '/workdir/modbus',
++            '-o', '/workdir/out-modbus',
++            '-N', 'tcp://127.0.0.1/502',
++            '-x', '/workdir/modbus.dict',
++            '-P', 'modbus',
++            '-D', '10000',
++            '-q', '3',
++            '-s', '3',
++            '-m', 'none',
++            '-E',
++            '-K',
++            '-R',
++            './openplc',
++        ]
++
++    def _runtime_env(self):
++        env = os.environ.copy()
++        env['AFL_FORKSRV_INIT_TMOUT'] = '12000'
++        env["AFL_NO_AFFINITY"] = '1'
++        return env
++
+     def start_runtime(self):
+         if (self.status() == "Stopped"):
+-            self.theprocess = subprocess.Popen(['./core/openplc'])  # XXX: iPAS
+-            self.runtime_status = "Running"
++            command = self._runtime_command()
++            env = self._runtime_env()
++            try:
++                self.theprocess = subprocess.Popen(command, cwd='./core', env=env, start_new_session=True)  # XXX: iPAS
++                self.runtime_status = "Running"
++            except OSError as e:
++                print(f"Error starting runtime with command {command}: {e}")
++                self.runtime_status = "Stopped"
+ 
+     def _rpc(self, msg, timeout=1000):
+         data = ""
+@@ -104,7 +139,30 @@ class runtime:
+ 
+     def stop_runtime(self):
+         if (self.status() == "Running"):
+-            self._rpc(f'quit()')
++            if not self._fuzzing_enabled():
++                self._rpc(f'quit()')
++
++            if getattr(self, 'theprocess', None) is not None and self.theprocess.poll() is None:
++                try:
++                    os.killpg(self.theprocess.pid, signal.SIGTERM)
++                except ProcessLookupError:
++                    pass
++                except OSError as e:
++                    print(f"Error stopping runtime process group: {e}")
++
++                for _ in range(50):
++                    if self.theprocess.poll() is not None:
++                        break
++                    time.sleep(0.1)
++
++                if self.theprocess.poll() is None:
++                    try:
++                        os.killpg(self.theprocess.pid, signal.SIGKILL)
++                    except ProcessLookupError:
++                        pass
++                    except OSError as e:
++                        print(f"Error force stopping runtime process group: {e}")
++
+             self.runtime_status = "Stopped"
+ 
+             while self.theprocess.poll() is None:  # XXX: iPAS, to prevent the defunct killed process.
+@@ -225,6 +283,11 @@ class runtime:
+         except Exception as e:
+             print(f"Error checking compilation status: {e}")
+ 
++        if getattr(self, 'theprocess', None) is not None and self.theprocess.poll() is None:
++            if self._fuzzing_enabled():
++                self.runtime_status = "Running"
++                return self.runtime_status
++
+         if not self._rpc('exec_time()', 10000):
+             self.runtime_status = "Stopped"
+ 
+diff --git a/webserver/scripts/compile_program.sh b/webserver/scripts/compile_program.sh
+index 696fce3..fa17c2c 100755
+--- a/webserver/scripts/compile_program.sh
++++ b/webserver/scripts/compile_program.sh
+@@ -50,16 +50,24 @@ fi
+ 
+ #compiling for each platform
+ cd core
++rm -f -- *.o openplc openplc_modbus_min
++
++# Build file lists explicitly to allow alternate entrypoints.
++# - `openplc` uses `main.cpp` and excludes `minimal_modbus_main.cpp`
++# - `openplc_modbus_min` uses `minimal_modbus_main.cpp` and excludes `main.cpp`
++OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
++OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
++
+ if [ "$OPENPLC_PLATFORM" = "win" ]; then
+     echo "Compiling for Windows"
+     echo "Generating object files..."
+-    g++ -I ./lib -c Config0.c -w
++    /aflnet/afl-clang-fast++ -I ./lib -c Config0.c -w
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+         exit 1
+     fi
+-    g++ -I ./lib -c Res0.c -w
++    /aflnet/afl-clang-fast++ -I ./lib -c Res0.c -w
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+@@ -68,7 +76,7 @@ if [ "$OPENPLC_PLATFORM" = "win" ]; then
+     echo "Generating glueVars..."
+     ./glue_generator
+     echo "Compiling main program..."
+-    g++ *.cpp *.o -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
++    /aflnet/afl-clang-fast++ *.cpp *.o -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+@@ -81,11 +89,11 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
+     echo "Compiling for Linux"
+     echo "Generating object files..."
+     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSL_RP4
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSL_RP4
+     elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSYNERGY
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSYNERGY
+     else
+-        g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+@@ -93,11 +101,11 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
+         exit 1
+     fi
+     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC -DSL_RP4
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC -DSL_RP4
+     elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC -DSYNERGY
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC -DSYNERGY
+     else
+-        g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC 
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $ETHERCAT_INC 
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+@@ -107,18 +115,38 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
+     echo "Generating glueVars..."
+     ./glue_generator
+     echo "Compiling main program..."
++    # Recompute lists after glue generation (glueVars.cpp may change)
++    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
++    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
++
+     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+-        g++ -std=gnu++11 *.cpp *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+     elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
+-        g++ -std=gnu++11 *.cpp *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
+     else
+-        g++ -std=gnu++11 *.cpp *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+         exit 1
+     fi
++
++    echo "Building minimal Modbus-only runtime (openplc_modbus_min)..."
++    echo "Using sources for openplc_modbus_min:"
++    echo "$OPENPLC_MODBUS_MIN_CPP_FILES"
++    if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
++    elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
++    else
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
++    fi
++    if [ $? -ne 0 ]; then
++        echo "Error compiling minimal Modbus runtime"
++        echo "Compilation finished with errors!"
++        exit 1
++    fi
+     echo "Compilation finished successfully!"
+     exit 0
+     
+@@ -126,9 +154,9 @@ elif [ "$OPENPLC_PLATFORM" = "rpi" ]; then
+     echo "Compiling for Raspberry Pi"
+     echo "Generating object files..."
+     if [ "$OPENPLC_DRIVER" = "sequent" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSEQUENT
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSEQUENT
+     else
+-        g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+@@ -136,9 +164,9 @@ elif [ "$OPENPLC_PLATFORM" = "rpi" ]; then
+         exit 1
+     fi
+     if [ "$OPENPLC_DRIVER" = "sequent" ]; then
+-        g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSEQUENT
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w -DSEQUENT
+     else
+-        g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+@@ -149,9 +177,9 @@ elif [ "$OPENPLC_PLATFORM" = "rpi" ]; then
+     ./glue_generator
+     echo "Compiling main program..."
+     if [ "$OPENPLC_DRIVER" = "sequent" ]; then
+-        g++ -DSEQUENT -std=gnu++11 *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w 
++        /aflnet/afl-clang-fast++ -DSEQUENT -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w 
+     else
+-        g++ -std=gnu++11 *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
++        /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
+     fi
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+@@ -165,13 +193,13 @@ elif [ "$OPENPLC_PLATFORM" = "opi" ]; then
+     WIRINGOP_INC="-I/usr/local/include -L/usr/local/lib -lwiringPi -lwiringPiDev"
+     echo "Compiling for Orange Pi"
+     echo "Generating object files..."
+-    g++ -std=gnu++11 -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
++    /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Config0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+         exit 1
+     fi
+-    g++ -std=gnu++11 -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
++    /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing -I ./lib -c Res0.c -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"
+@@ -180,7 +208,7 @@ elif [ "$OPENPLC_PLATFORM" = "opi" ]; then
+     echo "Generating glueVars..."
+     ./glue_generator
+     echo "Compiling main program..."
+-    g++ -std=gnu++11 *.cpp *.o -o openplc -I ./lib -lrt -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
++    /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
+     if [ $? -ne 0 ]; then
+         echo "Error compiling C files"
+         echo "Compilation finished with errors!"

@@ -61,6 +61,25 @@ uint64_t *lint_input_call_back(int a){ return lint_input[a]; }
 uint64_t *lint_output_call_back(int a){ return lint_output[a]; }
 void logger_callback(char *msg){ openplc_log(msg);}
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+bool is_port_open(int port) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return false;
+    
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
+    int res = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    close(sock);
+    
+    return (res == 0);
+}
+
 int main(int argc,char **argv)
 {
     // Define the max/min/avg/total cycle and latency variables used in REAL-TIME computation(in nanoseconds)
@@ -104,6 +123,12 @@ int main(int argc,char **argv)
     ethercat_configure("../utils/ethercat_src/build/ethercat.cfg", logger);
 #endif
     initializeHardware();
+
+
+// #ifdef __AFL_COMPILER
+//     __AFL_INIT();
+// #endif
+
     initializeMB();
 
     updateBuffersIn();
@@ -153,6 +178,11 @@ int main(int argc,char **argv)
     //gets the starting point for the clock
     printf("Getting current time\n");
     clock_gettime(CLOCK_MONOTONIC, &timer_start);
+
+    // while (!is_port_open(502)) {
+    //     usleep(100000); // Sleep for 100ms
+    // }
+
 
     //======================================================
     //                    MAIN LOOP

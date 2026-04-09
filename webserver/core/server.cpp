@@ -213,6 +213,9 @@ void *handleConnections(void *arguments)
     int *args = (int *)arguments;
     int client_fd = args[0];
     int protocol_type = args[1];
+
+    free(args);
+
     unsigned char buffer[NET_BUFFER_SIZE];
     int messageSize;
     bool *run_server;
@@ -283,7 +286,9 @@ void startServer(uint16_t port, int protocol_type)
     }
     else if (protocol_type == ENIP_PROTOCOL)
         run_server = &run_enip;
-    
+    #ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+    #endif
     while(*run_server)
     {
         client_fd = waitForClient(socket_fd, protocol_type); //block until a client connects
@@ -294,20 +299,26 @@ void startServer(uint16_t port, int protocol_type)
         }
 
         else
-        {
-            int arguments[2];
-            pthread_t thread;
-            int ret = -1;
-            sprintf(log_msg, "Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
-            openplc_log(log_msg);
-            arguments[0] = client_fd;
-            arguments[1] = protocol_type;
-            ret = pthread_create(&thread, NULL, handleConnections, (void*)arguments);
-            if (ret==0) 
-            {
-                pthread_detach(thread);
-            }
-        }
+{
+    // Allocate memory on the heap so it doesn't disappear
+    int *arguments = (int *)malloc(2 * sizeof(int)); 
+    pthread_t thread;
+    int ret = -1;
+
+    arguments[0] = client_fd;
+    arguments[1] = protocol_type;
+
+    ret = pthread_create(&thread, NULL, handleConnections, (void*)arguments);
+    
+    if (ret == 0) 
+    {
+        pthread_detach(thread);
+    }
+    else 
+    {
+        free(arguments); // Clean up if thread creation failed
+    }
+}
     }
     close(socket_fd);
     close(client_fd);

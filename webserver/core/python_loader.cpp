@@ -161,7 +161,7 @@ int python_block_loader(const char *script_name, const char *script_content, cha
     close(shm_in_fd);
     close(shm_out_fd);
 
-    char *cmd = malloc(512);
+    char *cmd = (char *)malloc(512);
     if (cmd == NULL) 
     {
         snprintf(log_msg, sizeof(log_msg), "malloc failed for cmd buffer\n");

@@ -78,9 +78,9 @@ using namespace std;
 struct pccc_header //Structure for the Header Information for EthernetIP
 {
     unsigned char *Data;    
-    unsigned char *Data_Size;	
+    int Data_Size;	
     
-    unsigned char *HD_length = 5;//[5] -> Typical Header Length for Command; Response Header Length is 4
+    uint16_t HD_length = 5;//[5] -> Typical Header Length for Command; Response Header Length is 4
     unsigned char *HD_CMD_Code;//[1] -> Command Code
     unsigned char *HD_Status;//[1] -> Status Code
     unsigned char *HD_TransactionNum;//[2] -> Transaction Number

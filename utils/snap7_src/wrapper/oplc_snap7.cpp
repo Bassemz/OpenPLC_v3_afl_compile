@@ -1195,7 +1195,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
         case 2:
             if (PTag->WordLen == S7WLBit)
             {
-                Result = DoRead ? getBitFromWordArray(int_input, PTag->Start, pUsrData) : putBitToWordArray(int_input, PTag->Start, pUsrData);
+                Result = DoRead ? getBitFromWordArray(int_input, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_input, PTag->Start, pbyte(pUsrData));
             }
             else {
                 Result = DoRead ? getBytesFromWordArray(int_input, PTag->Start, Size, pbyte(pUsrData)) :
@@ -1205,7 +1205,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
         case 102:
             if (PTag->WordLen == S7WLBit)
             {
-                Result = DoRead ? getBitFromWordArray(int_output, PTag->Start, pUsrData) : putBitToWordArray(int_output, PTag->Start, pUsrData);
+                Result = DoRead ? getBitFromWordArray(int_output, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_output, PTag->Start, pbyte(pUsrData));
             }
             else {
                 Result = DoRead ? getBytesFromWordArray(int_output, PTag->Start, Size, pbyte(pUsrData)) :
@@ -1215,7 +1215,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
         case 1002:
             if (PTag->WordLen == S7WLBit)
             {
-                Result = DoRead ? getBitFromWordArray(int_memory, PTag->Start, pUsrData) : putBitToWordArray(int_memory, PTag->Start, pUsrData);
+                Result = DoRead ? getBitFromWordArray(int_memory, PTag->Start, pbyte(pUsrData)) : putBitToWordArray(int_memory, PTag->Start, pbyte(pUsrData));
             }
             else {
                 Result = DoRead ? getBytesFromWordArray(int_memory, PTag->Start, Size, pbyte(pUsrData)) :
@@ -1225,7 +1225,7 @@ int S7API RWAreaCallBack(void* usrPtr, int Sender, int Operation, PS7Tag PTag, v
         case 1004:
             if (PTag->WordLen == S7WLBit)
             {
-                Result = DoRead ? getBitFromDWordArray(dint_memory, PTag->Start, pUsrData) : putBitToDWordArray(dint_memory, PTag->Start, pUsrData);
+                Result = DoRead ? getBitFromDWordArray(dint_memory, PTag->Start, pbyte(pUsrData)) : putBitToDWordArray(dint_memory, PTag->Start, pbyte(pUsrData));
             }
             else {
                 Result = DoRead ? getBytesFromDWordArray(dint_memory, PTag->Start, Size, pbyte(pUsrData)) :

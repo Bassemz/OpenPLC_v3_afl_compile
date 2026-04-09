@@ -3,6 +3,7 @@ import subprocess
 import socket
 import errno
 import time
+import signal
 from threading import Thread, Lock
 from queue import Queue, Empty
 import os
@@ -81,10 +82,44 @@ class runtime:
         self.compilation_error = None
         self.runtime_status = "Stopped"
 
+    def _fuzzing_enabled(self):
+        return True
+
+    def _runtime_command(self):
+        return [
+            'afl-fuzz',
+            '-d',
+            '-i', '/workdir/modbus',
+            '-o', '/workdir/out-modbus',
+            '-N', 'tcp://127.0.0.1/502',
+            '-x', '/workdir/modbus.dict',
+            '-P', 'modbus',
+            '-D', '10000',
+            '-q', '3',
+            '-s', '3',
+            '-m', 'none',
+            '-E',
+            '-K',
+            '-R',
+            './openplc',
+        ]
+
+    def _runtime_env(self):
+        env = os.environ.copy()
+        env['AFL_FORKSRV_INIT_TMOUT'] = '12000'
+        env["AFL_NO_AFFINITY"] = '1'
+        return env
+
     def start_runtime(self):
         if (self.status() == "Stopped"):
-            self.theprocess = subprocess.Popen(['./core/openplc'])  # XXX: iPAS
-            self.runtime_status = "Running"
+            command = self._runtime_command()
+            env = self._runtime_env()
+            try:
+                self.theprocess = subprocess.Popen(command, cwd='./core', env=env, start_new_session=True)  # XXX: iPAS
+                self.runtime_status = "Running"
+            except OSError as e:
+                print(f"Error starting runtime with command {command}: {e}")
+                self.runtime_status = "Stopped"
 
     def _rpc(self, msg, timeout=1000):
         data = ""
@@ -104,7 +139,30 @@ class runtime:
 
     def stop_runtime(self):
         if (self.status() == "Running"):
-            self._rpc(f'quit()')
+            if not self._fuzzing_enabled():
+                self._rpc(f'quit()')
+
+            if getattr(self, 'theprocess', None) is not None and self.theprocess.poll() is None:
+                try:
+                    os.killpg(self.theprocess.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                except OSError as e:
+                    print(f"Error stopping runtime process group: {e}")
+
+                for _ in range(50):
+                    if self.theprocess.poll() is not None:
+                        break
+                    time.sleep(0.1)
+
+                if self.theprocess.poll() is None:
+                    try:
+                        os.killpg(self.theprocess.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    except OSError as e:
+                        print(f"Error force stopping runtime process group: {e}")
+
             self.runtime_status = "Stopped"
 
             while self.theprocess.poll() is None:  # XXX: iPAS, to prevent the defunct killed process.
@@ -224,6 +282,11 @@ class runtime:
                     return "Compiling"
         except Exception as e:
             print(f"Error checking compilation status: {e}")
+
+        if getattr(self, 'theprocess', None) is not None and self.theprocess.poll() is None:
+            if self._fuzzing_enabled():
+                self.runtime_status = "Running"
+                return self.runtime_status
 
         if not self._rpc('exec_time()', 10000):
             self.runtime_status = "Stopped"

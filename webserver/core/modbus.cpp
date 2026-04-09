@@ -120,7 +120,7 @@ int word(unsigned char byte1, unsigned char byte2)
 void mapUnusedIO()
 {
     pthread_mutex_lock(&bufferLock);
-
+    
     for(int i = 0; i < MAX_DISCRETE_INPUT; i++)
     {
         if (bool_input[i/8][i%8] == NULL) bool_input[i/8][i%8] = &mb_discrete_input[i];
