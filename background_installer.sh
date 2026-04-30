@@ -157,9 +157,9 @@ function install_opendnp3 {
     echo "[OPEN DNP3]"
     cd "$OPENPLC_DIR/utils/dnp3_src"
     swap_on "$1"
-    cmake .
-    make
-    $1 make install || fail "Error installing OpenDNP3"
+    cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" .
+    make CC="$CC" CXX="$CXX"
+    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing OpenDNP3"
     $1 ldconfig
     swap_off "$1"
     cd "$OPENPLC_DIR"
@@ -182,8 +182,9 @@ function install_libmodbus {
     echo "[LIBMODBUS]"
     cd "$OPENPLC_DIR/utils/libmodbus_src"
     ./autogen.sh
-    ./configure
-    $1 make install || fail "Error installing Libmodbus"
+    ./configure CC="$CC" CXX="$CXX"
+    make CC="$CC" CXX="$CXX"
+    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing Libmodbus"
     $1 ldconfig
     cd "$OPENPLC_DIR"
 
@@ -197,8 +198,8 @@ function install_libmodbus {
 function install_libsnap7 {
     echo "[LIBSNAP7]"
     cd "$OPENPLC_DIR/utils/snap7_src/build/linux"
-    $1 make clean
-    $1 make install || fail "Error installing Libsnap7"
+    $1 make CC="$CC" CXX="$CXX" clean
+    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing Libsnap7"
     cd "$OPENPLC_DIR"
 }
 
