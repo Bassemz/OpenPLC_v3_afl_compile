@@ -4,6 +4,13 @@ SWAP_FILE="$OPENPLC_DIR/swapfile"
 WIRINGPI_VERSION="3.14"  # Support RPi 1..5, CM5, CM5(L), Pi500, GCLK (Generic Clock) for RPi5 is not supported.
 VENV_DIR="$OPENPLC_DIR/.venv"
 
+# Optional coverage instrumentation flags (gcov)
+# Can be overridden from the environment.
+: "${COVERAGE_FLAGS:=-fprofile-arcs -ftest-coverage}"
+export CFLAGS="${CFLAGS:-} ${COVERAGE_FLAGS}"
+export CXXFLAGS="${CXXFLAGS:-} ${COVERAGE_FLAGS}"
+export LDFLAGS="${LDFLAGS:-} ${COVERAGE_FLAGS}"
+
 function print_help_and_exit {
     echo ""
     echo "Error: You must provide a platform name as argument"
@@ -130,14 +137,14 @@ function install_matiec {
 function install_st_optimizer {
     echo "[ST OPTIMIZER]"
     cd "$OPENPLC_DIR/utils/st_optimizer_src"
-    /aflnet/afl-clang-fast++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
+    g++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
     cd "$OPENPLC_DIR"
 }
 
 function install_glue_generator {
     echo "[GLUE GENERATOR]"
     cd "$OPENPLC_DIR/utils/glue_generator_src"
-    /aflnet/afl-clang-fast++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
+    g++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
     cd "$OPENPLC_DIR"
 }
 
@@ -157,9 +164,13 @@ function install_opendnp3 {
     echo "[OPEN DNP3]"
     cd "$OPENPLC_DIR/utils/dnp3_src"
     swap_on "$1"
-    cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" .
-    make CC="$CC" CXX="$CXX"
-    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing OpenDNP3"
+    cmake . \
+        -DCMAKE_C_FLAGS="${CFLAGS}" \
+        -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS}" \
+        -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}"
+    make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
+    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing OpenDNP3"
     $1 ldconfig
     swap_off "$1"
     cd "$OPENPLC_DIR"
@@ -182,9 +193,9 @@ function install_libmodbus {
     echo "[LIBMODBUS]"
     cd "$OPENPLC_DIR/utils/libmodbus_src"
     ./autogen.sh
-    ./configure CC="$CC" CXX="$CXX"
-    make CC="$CC" CXX="$CXX"
-    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing Libmodbus"
+    ./configure CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
+    make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
+    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing Libmodbus"
     $1 ldconfig
     cd "$OPENPLC_DIR"
 
@@ -198,8 +209,8 @@ function install_libmodbus {
 function install_libsnap7 {
     echo "[LIBSNAP7]"
     cd "$OPENPLC_DIR/utils/snap7_src/build/linux"
-    $1 make CC="$CC" CXX="$CXX" clean
-    $1 make CC="$CC" CXX="$CXX" install || fail "Error installing Libsnap7"
+    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" clean
+    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing Libsnap7"
     cd "$OPENPLC_DIR"
 }
 
