@@ -4,6 +4,10 @@ SWAP_FILE="$OPENPLC_DIR/swapfile"
 WIRINGPI_VERSION="3.14"  # Support RPi 1..5, CM5, CM5(L), Pi500, GCLK (Generic Clock) for RPi5 is not supported.
 VENV_DIR="$OPENPLC_DIR/.venv"
 
+: "${CC:=/aflnet/afl-clang-fast}"
+: "${CXX:=/aflnet/afl-clang-fast++}"
+export CC CXX
+
 function print_help_and_exit {
     echo ""
     echo "Error: You must provide a platform name as argument"
@@ -152,6 +156,7 @@ function install_ethercat {
 function disable_ethercat {
     echo "" > "$OPENPLC_DIR/webserver/scripts/ethercat"
 }
+
 
 function install_opendnp3 {
     echo "[OPEN DNP3]"
