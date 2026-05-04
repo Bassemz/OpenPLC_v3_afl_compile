@@ -164,17 +164,14 @@ function install_opendnp3 {
     echo "[OPEN DNP3]"
     cd "$OPENPLC_DIR/utils/dnp3_src"
     swap_on "$1"
-    cmake . \
-        -DCMAKE_C_FLAGS="${CFLAGS}" \
-        -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
-        -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS}" \
-        -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}"
-    make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
-    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing OpenDNP3"
+    cmake .
+    make
+    $1 make install || fail "Error installing OpenDNP3"
     $1 ldconfig
     swap_off "$1"
     cd "$OPENPLC_DIR"
 }
+
 
 function disable_opendnp3 {
     echo ""
@@ -193,9 +190,8 @@ function install_libmodbus {
     echo "[LIBMODBUS]"
     cd "$OPENPLC_DIR/utils/libmodbus_src"
     ./autogen.sh
-    ./configure CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
-    make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
-    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing Libmodbus"
+    ./configure
+    $1 make install || fail "Error installing Libmodbus"
     $1 ldconfig
     cd "$OPENPLC_DIR"
 
@@ -209,11 +205,10 @@ function install_libmodbus {
 function install_libsnap7 {
     echo "[LIBSNAP7]"
     cd "$OPENPLC_DIR/utils/snap7_src/build/linux"
-    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" clean
-    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing Libsnap7"
+    $1 make clean
+    $1 make install || fail "Error installing Libsnap7"
     cd "$OPENPLC_DIR"
 }
-
 
 function install_systemd_service() {
     if [ "$1" == "sudo" ]; then
