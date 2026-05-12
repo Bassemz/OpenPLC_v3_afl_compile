@@ -15,6 +15,12 @@ OPENPLC_DRIVER=$(cat openplc_driver)
 # Can be overridden from the environment.
 : "${COVERAGE_FLAGS:=-fprofile-arcs -ftest-coverage}"
 
+#CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
+CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build:/usr/local/lib:/lib/x86_64-linux-gnu/lib -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
+
+
+COVERAGE_FLAGS="$COVERAGE_FLAGS"
+
 #store the active program filename
 echo "$1" > ../active_program
 
@@ -80,7 +86,7 @@ if [ "$OPENPLC_PLATFORM" = "win" ]; then
     echo "Generating glueVars..."
     ./glue_generator
     echo "Compiling main program..."
-    g++ $COVERAGE_FLAGS *.cpp *.o -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
+    g++ $COVERAGE_FLAGS *.cpp *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
         echo "Compilation finished with errors!"
@@ -124,11 +130,11 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
 
     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
     elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
     else
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
     fi
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
@@ -140,11 +146,11 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     echo "Using sources for openplc_modbus_min:"
     echo "$OPENPLC_MODBUS_MIN_CPP_FILES"
     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
     elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
     else
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
     fi
     if [ $? -ne 0 ]; then
         echo "Error compiling minimal Modbus runtime"
@@ -181,9 +187,9 @@ elif [ "$OPENPLC_PLATFORM" = "rpi" ]; then
     ./glue_generator
     echo "Compiling main program..."
     if [ "$OPENPLC_DRIVER" = "sequent" ]; then
-        g++ $COVERAGE_FLAGS -DSEQUENT -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w 
+        g++ $COVERAGE_FLAGS -DSEQUENT -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w 
     else
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
+        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -lrt -lwiringPi -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w
     fi
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
@@ -212,7 +218,7 @@ elif [ "$OPENPLC_PLATFORM" = "opi" ]; then
     echo "Generating glueVars..."
     ./glue_generator
     echo "Compiling main program..."
-    g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o -o openplc -I ./lib -lrt -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
+    g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing *.cpp *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -lrt -lpthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w $WIRINGOP_INC
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
         echo "Compilation finished with errors!"
