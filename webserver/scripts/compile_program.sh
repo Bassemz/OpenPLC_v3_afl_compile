@@ -81,7 +81,7 @@ if [ "$OPENPLC_PLATFORM" = "win" ]; then
     echo "Generating glueVars..."
     ./glue_generator
     echo "Compiling main program..."
-    /aflnet/afl-clang-fast++ *.cpp *.o -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
+    /aflnet/afl-clang-fast++ $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
         echo "Compilation finished with errors!"
@@ -121,8 +121,12 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     ./glue_generator
     echo "Compiling main program..."
     # Recompute lists after glue generation (glueVars.cpp may change)
-    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
-    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
+    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+    OPENPLC_COMMON_MIN_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_DNP3_MIN_CPP_FILES="minimal_dnp3_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_S7_MIN_CPP_FILES="minimal_s7_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_ENIP_MIN_CPP_FILES="minimal_enip_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
 
     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
         /aflnet/afl-clang-fast++ -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
