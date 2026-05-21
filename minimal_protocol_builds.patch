@@ -1,0 +1,312 @@
+diff --git a/webserver/core/minimal_dnp3_main.cpp b/webserver/core/minimal_dnp3_main.cpp
+new file mode 100644
+index 0000000..1a62316
+--- /dev/null
++++ b/webserver/core/minimal_dnp3_main.cpp
+@@ -0,0 +1,70 @@
++// Minimal OpenPLC DNP3/TCP outstation entrypoint for fuzzing.
++//
++// Goal: initialize the generated PLC program + I/O tables, then run only the
++// DNP3 server loop (no interactive server, no hardware init, no realtime).
++//
++// This is intentionally small so it can be used as an AFLNet target.
++
++#include <pthread.h>
++#include <signal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++#include "ladder.h"
++
++// -----------------------------------------------------------------------------
++// Globals expected across the core (normally defined in `main.cpp`)
++// -----------------------------------------------------------------------------
++IEC_BOOL __DEBUG;
++unsigned long __tick = 0;
++pthread_mutex_t bufferLock;
++uint8_t run_openplc = 1;
++
++static void on_signal(int /*signum*/)
++{
++    run_dnp3 = 0;
++    run_openplc = 0;
++}
++
++int main(int argc, char **argv)
++{
++    uint16_t port = 20000;
++    if (argc >= 2)
++    {
++        long parsed = strtol(argv[1], nullptr, 10);
++        if (parsed > 0 && parsed < 65536)
++        {
++            port = static_cast<uint16_t>(parsed);
++        }
++        else
++        {
++            fprintf(stderr, "Invalid port '%s' (expected 1-65535)\n", argv[1]);
++            return 2;
++        }
++    }
++
++    signal(SIGINT, on_signal);
++    signal(SIGTERM, on_signal);
++
++    if (pthread_mutex_init(&bufferLock, NULL) != 0)
++    {
++        fprintf(stderr, "Mutex init failed\n");
++        return 1;
++    }
++
++    config_init__();
++#ifdef __AFL_HAVE_MANUAL_CONTROL
++    __AFL_INIT();
++#endif
++    glueVars();
++
++    mapUnusedIO();
++
++    run_dnp3 = 1;
++    dnp3StartServer(port);
++
++    run_dnp3 = 0;
++    run_openplc = 0;
++    return 0;
++}
+diff --git a/webserver/core/minimal_enip_main.cpp b/webserver/core/minimal_enip_main.cpp
+new file mode 100644
+index 0000000..a90da9a
+--- /dev/null
++++ b/webserver/core/minimal_enip_main.cpp
+@@ -0,0 +1,70 @@
++// Minimal OpenPLC EtherNet/IP (ENIP) server entrypoint for fuzzing.
++//
++// Goal: initialize the generated PLC program + I/O tables, then run only the
++// EtherNet/IP server loop (no interactive server, no hardware init, no realtime).
++//
++// This is intentionally small so it can be used as an AFLNet target.
++
++#include <pthread.h>
++#include <signal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++#include "ladder.h"
++
++// -----------------------------------------------------------------------------
++// Globals expected across the core (normally defined in `main.cpp`)
++// -----------------------------------------------------------------------------
++IEC_BOOL __DEBUG;
++unsigned long __tick = 0;
++pthread_mutex_t bufferLock;
++uint8_t run_openplc = 1;
++
++static void on_signal(int /*signum*/)
++{
++    run_enip = 0;
++    run_openplc = 0;
++}
++
++int main(int argc, char **argv)
++{
++    uint16_t port = 44818;
++    if (argc >= 2)
++    {
++        long parsed = strtol(argv[1], nullptr, 10);
++        if (parsed > 0 && parsed < 65536)
++        {
++            port = static_cast<uint16_t>(parsed);
++        }
++        else
++        {
++            fprintf(stderr, "Invalid port '%s' (expected 1-65535)\n", argv[1]);
++            return 2;
++        }
++    }
++
++    signal(SIGINT, on_signal);
++    signal(SIGTERM, on_signal);
++
++    if (pthread_mutex_init(&bufferLock, NULL) != 0)
++    {
++        fprintf(stderr, "Mutex init failed\n");
++        return 1;
++    }
++
++    config_init__();
++#ifdef __AFL_HAVE_MANUAL_CONTROL
++    __AFL_INIT();
++#endif
++    glueVars();
++
++    mapUnusedIO();
++
++    run_enip = 1;
++    startServer(port, ENIP_PROTOCOL);
++
++    run_enip = 0;
++    run_openplc = 0;
++    return 0;
++}
+diff --git a/webserver/core/minimal_s7_main.cpp b/webserver/core/minimal_s7_main.cpp
+new file mode 100644
+index 0000000..df1dfc8
+--- /dev/null
++++ b/webserver/core/minimal_s7_main.cpp
+@@ -0,0 +1,64 @@
++// Minimal OpenPLC Siemens S7 (Snap7) server entrypoint for fuzzing.
++//
++// Goal: initialize the generated PLC program + I/O tables, then run only the
++// Snap7 server (no interactive server, no hardware init, no realtime).
++//
++// The S7 protocol listens on TCP port 102 by default (ISO-on-TCP).
++
++#include <pthread.h>
++#include <signal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++#include "ladder.h"
++#include "oplc_snap7.h"
++
++// -----------------------------------------------------------------------------
++// Globals expected across the core (normally defined in `main.cpp`)
++// -----------------------------------------------------------------------------
++IEC_BOOL __DEBUG;
++unsigned long __tick = 0;
++pthread_mutex_t bufferLock;
++uint8_t run_openplc = 1;
++
++static void on_signal(int /*signum*/)
++{
++    run_openplc = 0;
++}
++
++int main(int argc, char **argv)
++{
++    (void)argc;
++    (void)argv;
++
++    signal(SIGINT, on_signal);
++    signal(SIGTERM, on_signal);
++
++    if (pthread_mutex_init(&bufferLock, NULL) != 0)
++    {
++        fprintf(stderr, "Mutex init failed\n");
++        return 1;
++    }
++
++    config_init__();
++#ifdef __AFL_HAVE_MANUAL_CONTROL
++    __AFL_INIT();
++#endif
++    glueVars();
++
++    mapUnusedIO();
++
++    initializeSnap7();
++    startSnap7();
++
++    while (run_openplc)
++    {
++        sleepms(100);
++    }
++
++    stopSnap7();
++    finalizeSnap7();
++
++    return 0;
++}
+diff --git a/webserver/scripts/compile_program.sh b/webserver/scripts/compile_program.sh
+index 7d07565..4f04d12 100755
+--- a/webserver/scripts/compile_program.sh
++++ b/webserver/scripts/compile_program.sh
+@@ -60,13 +60,18 @@ fi
+ 
+ #compiling for each platform
+ cd core
+-rm -f -- *.o openplc openplc_modbus_min
++rm -f -- *.o openplc openplc_modbus_min openplc_dnp3_min openplc_s7_min openplc_enip_min
+ 
+ # Build file lists explicitly to allow alternate entrypoints.
+-# - `openplc` uses `main.cpp` and excludes `minimal_modbus_main.cpp`
+-# - `openplc_modbus_min` uses `minimal_modbus_main.cpp` and excludes `main.cpp`
+-OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
+-OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
++# - `openplc` uses `main.cpp` and excludes all minimal_*_main.cpp entrypoints
++# - `openplc_*_min` uses one minimal_*_main.cpp and excludes `main.cpp`
++MINIMAL_MAIN_EXCLUDE='minimal_modbus_main\.cpp$|minimal_dnp3_main\.cpp$|minimal_s7_main\.cpp$|minimal_enip_main\.cpp$'
++OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
++OPENPLC_COMMON_MIN_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
++OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++OPENPLC_DNP3_MIN_CPP_FILES="minimal_dnp3_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++OPENPLC_S7_MIN_CPP_FILES="minimal_s7_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++OPENPLC_ENIP_MIN_CPP_FILES="minimal_enip_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+ 
+ if [ "$OPENPLC_PLATFORM" = "win" ]; then
+     echo "Compiling for Windows"
+@@ -126,8 +131,12 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
+     ./glue_generator
+     echo "Compiling main program..."
+     # Recompute lists after glue generation (glueVars.cpp may change)
+-    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
+-    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
++    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
++    OPENPLC_COMMON_MIN_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
++    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++    OPENPLC_DNP3_MIN_CPP_FILES="minimal_dnp3_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++    OPENPLC_S7_MIN_CPP_FILES="minimal_s7_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
++    OPENPLC_ENIP_MIN_CPP_FILES="minimal_enip_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+ 
+     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+         g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+@@ -142,21 +151,31 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
+         exit 1
+     fi
+ 
+-    echo "Building minimal Modbus-only runtime (openplc_modbus_min)..."
+-    echo "Using sources for openplc_modbus_min:"
+-    echo "$OPENPLC_MODBUS_MIN_CPP_FILES"
+-    if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+-    elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
+-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
+-    else
+-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
+-    fi
+-    if [ $? -ne 0 ]; then
+-        echo "Error compiling minimal Modbus runtime"
+-        echo "Compilation finished with errors!"
+-        exit 1
+-    fi
++    build_minimal_runtime() {
++        local entry_cpp="$1"
++        local output_bin="$2"
++        local sources="$3"
++        echo "Building minimal runtime (${output_bin})..."
++        echo "Using sources for ${output_bin}:"
++        echo "$sources"
++        if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
++            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
++        elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
++            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
++        else
++            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC
++        fi
++        if [ $? -ne 0 ]; then
++            echo "Error compiling minimal runtime (${output_bin})"
++            echo "Compilation finished with errors!"
++            exit 1
++        fi
++    }
++
++    build_minimal_runtime minimal_modbus_main.cpp openplc_modbus_min "$OPENPLC_MODBUS_MIN_CPP_FILES"
++    build_minimal_runtime minimal_dnp3_main.cpp openplc_dnp3_min "$OPENPLC_DNP3_MIN_CPP_FILES"
++    build_minimal_runtime minimal_s7_main.cpp openplc_s7_min "$OPENPLC_S7_MIN_CPP_FILES"
++    build_minimal_runtime minimal_enip_main.cpp openplc_enip_min "$OPENPLC_ENIP_MIN_CPP_FILES"
+     echo "Compilation finished successfully!"
+     exit 0
+     
