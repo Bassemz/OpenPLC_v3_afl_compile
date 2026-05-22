@@ -137,16 +137,16 @@ function install_matiec {
 function install_st_optimizer {
     echo "[ST OPTIMIZER]"
     cd "$OPENPLC_DIR/utils/st_optimizer_src"
-    CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
-    g++ st_optimizer.cpp $CUSTOM_LDFLAGS -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
+    #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
+    g++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
     cd "$OPENPLC_DIR"
 }
 
 function install_glue_generator {
     echo "[GLUE GENERATOR]"
     cd "$OPENPLC_DIR/utils/glue_generator_src"
-    CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
-    g++ -std=c++11 glue_generator.cpp $CUSTOM_LDFLAGS -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
+    #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
+    g++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
     cd "$OPENPLC_DIR"
 }
 
