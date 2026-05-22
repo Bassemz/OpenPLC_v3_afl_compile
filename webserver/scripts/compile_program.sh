@@ -60,13 +60,18 @@ fi
 
 #compiling for each platform
 cd core
-rm -f -- *.o openplc openplc_modbus_min
+rm -f -- *.o openplc openplc_modbus_min openplc_dnp3_min openplc_s7_min openplc_enip_min
 
 # Build file lists explicitly to allow alternate entrypoints.
-# - `openplc` uses `main.cpp` and excludes `minimal_modbus_main.cpp`
-# - `openplc_modbus_min` uses `minimal_modbus_main.cpp` and excludes `main.cpp`
-OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
-OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
+# - `openplc` uses `main.cpp` and excludes all minimal_*_main.cpp entrypoints
+# - `openplc_*_min` uses one minimal_*_main.cpp and excludes `main.cpp`
+MINIMAL_MAIN_EXCLUDE='minimal_modbus_main\.cpp$|minimal_dnp3_main\.cpp$|minimal_s7_main\.cpp$|minimal_enip_main\.cpp$'
+OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+OPENPLC_COMMON_MIN_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+OPENPLC_DNP3_MIN_CPP_FILES="minimal_dnp3_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+OPENPLC_S7_MIN_CPP_FILES="minimal_s7_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+OPENPLC_ENIP_MIN_CPP_FILES="minimal_enip_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
 
 if [ "$OPENPLC_PLATFORM" = "win" ]; then
     echo "Compiling for Windows"
@@ -86,7 +91,7 @@ if [ "$OPENPLC_PLATFORM" = "win" ]; then
     echo "Generating glueVars..."
     ./glue_generator
     echo "Compiling main program..."
-    g++ $COVERAGE_FLAGS *.cpp *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
+    g++ $COVERAGE_FLAGS $OPENPLC_CPP_FILES *.o $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive -I /usr/local/include/modbus -L /usr/local/lib snap7.lib -lmodbus -w 
     if [ $? -ne 0 ]; then
         echo "Error compiling C files"
         echo "Compilation finished with errors!"
@@ -126,8 +131,12 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     ./glue_generator
     echo "Compiling main program..."
     # Recompute lists after glue generation (glueVars.cpp may change)
-    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')
-    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -v '^minimal_modbus_main\.cpp$' | tr '\n' ' ')"
+    OPENPLC_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+    OPENPLC_COMMON_MIN_CPP_FILES=$(ls -1 *.cpp 2>/dev/null | grep -v '^main\.cpp$' | grep -vE "$MINIMAL_MAIN_EXCLUDE" | tr '\n' ' ')
+    OPENPLC_MODBUS_MIN_CPP_FILES="minimal_modbus_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_DNP3_MIN_CPP_FILES="minimal_dnp3_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_S7_MIN_CPP_FILES="minimal_s7_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
+    OPENPLC_ENIP_MIN_CPP_FILES="minimal_enip_main.cpp $OPENPLC_COMMON_MIN_CPP_FILES"
 
     if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
         g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_CPP_FILES *.o   $CUSTOM_LDFLAGS -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
@@ -142,21 +151,30 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
         exit 1
     fi
 
-    echo "Building minimal Modbus-only runtime (openplc_modbus_min)..."
-    echo "Using sources for openplc_modbus_min:"
-    echo "$OPENPLC_MODBUS_MIN_CPP_FILES"
-    if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
-    elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
-    else
-        g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $OPENPLC_MODBUS_MIN_CPP_FILES *.o    $CUSTOM_LDFLAGS -o openplc_modbus_min -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC 
-    fi
-    if [ $? -ne 0 ]; then
-        echo "Error compiling minimal Modbus runtime"
-        echo "Compilation finished with errors!"
-        exit 1
-    fi
+    build_minimal_runtime() {
+        local output_bin="$1"
+        local sources="$2"
+        echo "Building minimal runtime (${output_bin})..."
+        echo "Using sources for ${output_bin}:"
+        echo "$sources"
+        if [ "$OPENPLC_DRIVER" = "sl_rp4" ]; then
+            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSL_RP4
+        elif [ "$OPENPLC_DRIVER" = "synergy_logic" ]; then
+            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC -DSYNERGY
+        else
+            g++ $COVERAGE_FLAGS -std=gnu++11 -Wno-c++11-narrowing $sources *.o $CUSTOM_LDFLAGS -o "$output_bin" -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lsnap7 -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -lrt -w $ETHERCAT_INC
+        fi
+        if [ $? -ne 0 ]; then
+            echo "Error compiling minimal runtime (${output_bin})"
+            echo "Compilation finished with errors!"
+            exit 1
+        fi
+    }
+
+    build_minimal_runtime openplc_modbus_min "$OPENPLC_MODBUS_MIN_CPP_FILES"
+    build_minimal_runtime openplc_dnp3_min "$OPENPLC_DNP3_MIN_CPP_FILES"
+    build_minimal_runtime openplc_s7_min "$OPENPLC_S7_MIN_CPP_FILES"
+    build_minimal_runtime openplc_enip_min "$OPENPLC_ENIP_MIN_CPP_FILES"
     echo "Compilation finished successfully!"
     exit 0
     
