@@ -128,7 +128,8 @@ public:
         if(index < MIN_16B_RANGE && int_output[index] != NULL) {
             *int_output[index] = ao_val;
         }
-        else if(index < MAX_16B_RANGE && 
+        else if(index < MAX_16B_RANGE &&
+                (index - MIN_16B_RANGE) < BUFFER_SIZE &&
                 int_memory[index - MIN_16B_RANGE] != NULL) {
             *int_memory[index - MIN_16B_RANGE] = ao_val;
         }
@@ -146,7 +147,8 @@ public:
     virtual CommandStatus Operate(const AnalogOutputInt32& command, uint16_t index, OperateType opType) {
         auto ao_val = command.value;
 
-        if(index < MIN_32B_RANGE || index >= MAX_32B_RANGE)
+        if(index < MIN_32B_RANGE || index >= MAX_32B_RANGE ||
+           (index - MIN_32B_RANGE) >= BUFFER_SIZE)
             return CommandStatus::OUT_OF_RANGE;
         
         pthread_mutex_lock(&bufferLock);
@@ -166,7 +168,8 @@ public:
     virtual CommandStatus Operate(const AnalogOutputFloat32& command, uint16_t index, OperateType opType) {
         auto ao_val = command.value;
 
-        if(index < MIN_32B_RANGE || index >= MAX_32B_RANGE)
+        if(index < MIN_32B_RANGE || index >= MAX_32B_RANGE ||
+           (index - MIN_32B_RANGE) >= BUFFER_SIZE)
             return CommandStatus::OUT_OF_RANGE;
         
         pthread_mutex_lock(&bufferLock);
@@ -185,7 +188,8 @@ public:
     virtual CommandStatus Operate(const AnalogOutputDouble64& command, uint16_t index, OperateType opType) {
         auto ao_val = command.value;
 
-        if(index < MIN_64B_RANGE || index >= MAX_64B_RANGE)
+        if(index < MIN_64B_RANGE || index >= MAX_64B_RANGE ||
+           (index - MIN_64B_RANGE) >= BUFFER_SIZE)
             return CommandStatus::OUT_OF_RANGE;
         
         pthread_mutex_lock(&bufferLock);
@@ -226,8 +230,8 @@ void update_vals(std::shared_ptr<IOutstation> outstation){
     for (int i = offset_ao; i < MIN_16B_RANGE; i++) {
         builder.Update(AnalogOutputStatus((int)(*int_output[i])), i-offset_ao);
     }
-    // Update Holding registers for memory
-    for (int i = MIN_16B_RANGE; i < MAX_16B_RANGE; i++) {
+    // Update Holding registers for memory (clamp to BUFFER_SIZE from ladder.h)
+    for (int i = MIN_16B_RANGE; i < MAX_16B_RANGE && (i - MIN_16B_RANGE) < BUFFER_SIZE; i++) {
         if(int_memory[i - MIN_16B_RANGE] != NULL)
             builder.Update(
                     AnalogOutputStatus((int)(*int_memory[i - MIN_16B_RANGE])),
@@ -235,7 +239,7 @@ void update_vals(std::shared_ptr<IOutstation> outstation){
             );
     } 
     // Update Holding registers for 32 b memory
-    for (int i = MIN_32B_RANGE; i < MAX_32B_RANGE; i++) {
+    for (int i = MIN_32B_RANGE; i < MAX_32B_RANGE && (i - MIN_32B_RANGE) < BUFFER_SIZE; i++) {
         if(dint_memory[i - MIN_32B_RANGE] != NULL)
             builder.Update(
                     AnalogOutputStatus((int)(*dint_memory[i - MIN_32B_RANGE])),
@@ -243,10 +247,7 @@ void update_vals(std::shared_ptr<IOutstation> outstation){
             );
     } 
     // Update Holding registers for 64 b memory
-    for (int i = MIN_64B_RANGE; 
-         (i < MAX_64B_RANGE && 
-            i - MIN_64B_RANGE < sizeof(lint_memory) / sizeof(lint_memory[0])); 
-         i++) {
+    for (int i = MIN_64B_RANGE; i < MAX_64B_RANGE && (i - MIN_64B_RANGE) < BUFFER_SIZE; i++) {
         if(lint_memory[i - MIN_64B_RANGE] != NULL)
             builder.Update(
                     AnalogOutputStatus((int)(*lint_memory[i - MIN_64B_RANGE])),
