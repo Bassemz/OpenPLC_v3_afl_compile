@@ -1256,7 +1256,7 @@ void initializeSnap7()
         Server = new TS7Server;
         // With the next function we can limit the events to start/stop/client added etc.
         // For a deep debug comment the line
-        Server->SetEventsMask(0x3ff);
+        // Server->SetEventsMask(0x3ff);
         // Set the Server events callback
         Server->SetEventsCallback(EventCallBack, NULL);
 
