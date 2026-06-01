@@ -248,7 +248,7 @@ function finalize_install {
     else
         ./change_hardware_layer.sh blank_linux
     fi
-    ./compile_program.sh blank_program.st
+    ./compile_program.sh water_tank_simple.st
     cat > "$OPENPLC_DIR/start_openplc.sh" <<EOF
 #!/bin/bash
 if [ -d "/docker_persistent" ]; then
