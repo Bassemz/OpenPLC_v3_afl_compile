@@ -4,13 +4,6 @@ SWAP_FILE="$OPENPLC_DIR/swapfile"
 WIRINGPI_VERSION="3.14"  # Support RPi 1..5, CM5, CM5(L), Pi500, GCLK (Generic Clock) for RPi5 is not supported.
 VENV_DIR="$OPENPLC_DIR/.venv"
 
-# Optional coverage instrumentation flags (gcov)
-# Can be overridden from the environment.
-# : "${COVERAGE_FLAGS:=-fprofile-arcs -ftest-coverage}"
-# export CFLAGS="${CFLAGS:-} ${COVERAGE_FLAGS}"
-# export CXXFLAGS="${CXXFLAGS:-} ${COVERAGE_FLAGS}"
-# export LDFLAGS="${LDFLAGS:-} ${COVERAGE_FLAGS}"
-
 function print_help_and_exit {
     echo ""
     echo "Error: You must provide a platform name as argument"
@@ -137,7 +130,6 @@ function install_matiec {
 function install_st_optimizer {
     echo "[ST OPTIMIZER]"
     cd "$OPENPLC_DIR/utils/st_optimizer_src"
-    #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
     g++ st_optimizer.cpp -o "$OPENPLC_DIR/webserver/st_optimizer" || fail "Error compiling ST Optimizer"
     cd "$OPENPLC_DIR"
 }
@@ -145,7 +137,6 @@ function install_st_optimizer {
 function install_glue_generator {
     echo "[GLUE GENERATOR]"
     cd "$OPENPLC_DIR/utils/glue_generator_src"
-    #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
     g++ -std=c++11 glue_generator.cpp -o "$OPENPLC_DIR/webserver/core/glue_generator" || fail "Error compiling Glue Generator"
     cd "$OPENPLC_DIR"
 }
@@ -191,11 +182,8 @@ function install_libmodbus {
     echo "[LIBMODBUS]"
     cd "$OPENPLC_DIR/utils/libmodbus_src"
     ./autogen.sh
-    #./configure
-    #$1 make install || fail "Error installing Libmodbus"
-    ./configure CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
-    make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}"
-    $1 make CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" install || fail "Error installing Libmodbus"
+    ./configure
+    $1 make install || fail "Error installing Libmodbus"
     $1 ldconfig
     cd "$OPENPLC_DIR"
 
@@ -259,7 +247,7 @@ function finalize_install {
     else
         ./change_hardware_layer.sh blank_linux
     fi
-    ./compile_program.sh water_tank_simple.st
+    ./compile_program.sh blank_program.st
     cat > "$OPENPLC_DIR/start_openplc.sh" <<EOF
 #!/bin/bash
 if [ -d "/docker_persistent" ]; then
