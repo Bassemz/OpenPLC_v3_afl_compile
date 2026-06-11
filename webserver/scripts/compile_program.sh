@@ -13,7 +13,7 @@ OPENPLC_DRIVER=$(cat openplc_driver)
 
 # Optional coverage instrumentation flags (gcov)
 # Can be overridden from the environment.
-: "${COVERAGE_FLAGS:=-fprofile-arcs -ftest-coverage}"
+: "${COVERAGE_FLAGS:=--coverage}"
 
 #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
 #CUSTOM_LDFLAGS="-Wl,--rpath=/glibc_test/glibc/glibc-build:/usr/local/lib:/lib/x86_64-linux-gnu/lib -Wl,--dynamic-linker=/glibc_test/glibc/glibc-build/elf/ld-linux-x86-64.so.2 /glibc_test/glibc/glibc-build/libc.so.6"
