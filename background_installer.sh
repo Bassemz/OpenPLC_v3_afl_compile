@@ -164,7 +164,7 @@ function install_opendnp3 {
     echo "[OPEN DNP3]"
     cd "$OPENPLC_DIR/utils/dnp3_src"
     swap_on "$1"
-    cmake . -DCMAKE_C_FLAGS="$COVERAGE_FLAGS" -DCMAKE_CXX_FLAGS="$COVERAGE_FLAGS"
+    cmake . -DCMAKE_C_FLAGS="$COVERAGE_FLAGS" -DCMAKE_CXX_FLAGS="$COVERAGE_FLAGS" -DCMAKE_SHARED_LINKER_FLAGS="-lgcov"
     make
     $1 make install || fail "Error installing OpenDNP3"
     $1 ldconfig
@@ -208,7 +208,7 @@ function install_libsnap7 {
     echo "[LIBSNAP7]"
     cd "$OPENPLC_DIR/utils/snap7_src/build/linux"
     $1 make clean
-    $1 make CXXFLAGS="-O3 -fPIC -pedantic $COVERAGE_FLAGS" install || fail "Error installing Libsnap7"
+    $1 make CXXFLAGS="-O3 -fPIC -pedantic $COVERAGE_FLAGS" LinkOptions="-O3 $COVERAGE_FLAGS" install || fail "Error installing Libsnap7"
     cd "$OPENPLC_DIR"
 }
 
