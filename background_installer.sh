@@ -9,6 +9,10 @@ VENV_DIR="$OPENPLC_DIR/.venv"
 : "${COVERAGE_FLAGS:=--coverage}"
 COVERAGE_FLAGS="$COVERAGE_FLAGS"
 
+# AddressSanitizer flags
+: "${ASAN_FLAGS:=-fsanitize=address -g -fno-omit-frame-pointer}"
+ASAN_FLAGS="$ASAN_FLAGS"
+
 function print_help_and_exit {
     echo ""
     echo "Error: You must provide a platform name as argument"
@@ -164,7 +168,7 @@ function install_opendnp3 {
     echo "[OPEN DNP3]"
     cd "$OPENPLC_DIR/utils/dnp3_src"
     swap_on "$1"
-    cmake . -DCMAKE_C_FLAGS="$COVERAGE_FLAGS" -DCMAKE_CXX_FLAGS="$COVERAGE_FLAGS" -DCMAKE_SHARED_LINKER_FLAGS="-lgcov"
+    cmake . -DCMAKE_C_FLAGS="$COVERAGE_FLAGS $ASAN_FLAGS" -DCMAKE_CXX_FLAGS="$COVERAGE_FLAGS $ASAN_FLAGS" -DCMAKE_SHARED_LINKER_FLAGS="-lgcov $ASAN_FLAGS"
     make
     $1 make install || fail "Error installing OpenDNP3"
     $1 ldconfig
@@ -191,9 +195,9 @@ function install_libmodbus {
     ./autogen.sh
     #./configure
     #$1 make install || fail "Error installing Libmodbus"
-    ./configure CFLAGS="${CFLAGS} ${COVERAGE_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS}"
-    make CFLAGS="${CFLAGS} ${COVERAGE_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS}"
-    $1 make CFLAGS="${CFLAGS} ${COVERAGE_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS}" install || fail "Error installing Libmodbus"
+    ./configure CFLAGS="${CFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}"
+    make CFLAGS="${CFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}"
+    $1 make CFLAGS="${CFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" CXXFLAGS="${CXXFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" LDFLAGS="${LDFLAGS} ${COVERAGE_FLAGS} ${ASAN_FLAGS}" install || fail "Error installing Libmodbus"
     $1 ldconfig
     cd "$OPENPLC_DIR"
 
@@ -208,7 +212,7 @@ function install_libsnap7 {
     echo "[LIBSNAP7]"
     cd "$OPENPLC_DIR/utils/snap7_src/build/linux"
     $1 make clean
-    $1 make CXXFLAGS="-O3 -fPIC -pedantic $COVERAGE_FLAGS" LinkOptions="-O3 $COVERAGE_FLAGS" install || fail "Error installing Libsnap7"
+    $1 make CXXFLAGS="-O3 -fPIC -pedantic $COVERAGE_FLAGS $ASAN_FLAGS" LinkOptions="-O3 $COVERAGE_FLAGS $ASAN_FLAGS" install || fail "Error installing Libsnap7"
     cd "$OPENPLC_DIR"
 }
 
