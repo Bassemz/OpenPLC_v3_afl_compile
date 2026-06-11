@@ -6,7 +6,7 @@ VENV_DIR="$OPENPLC_DIR/.venv"
 
 # Optional coverage instrumentation flags (gcov)
 # Can be overridden from the environment.
-: "${COVERAGE_FLAGS:=-fprofile-arcs -ftest-coverage}"
+: "${COVERAGE_FLAGS:=--coverage}"
 COVERAGE_FLAGS="$COVERAGE_FLAGS"
 
 function print_help_and_exit {
